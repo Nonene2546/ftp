@@ -112,28 +112,39 @@ class FTPClient:
     resp = self.send_ftp(port_command)
 
     if resp.startswith("200"):
-      data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      data_socket.bind((local_ip, data_port))
-      data_socket.listen(1)
-      data_conn, _ = data_socket.accept()
+      try:
+        data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        data_socket.settimeout(10)
+        data_socket.bind((local_ip, data_port))
+        data_socket.listen(1)
 
-      resp = self.send_ftp(f'RETR {dir}')
+        resp = self.send_ftp(f'RETR {dir}')
+        if resp.startswith('5'):
+          return
+          
+        local_path = os.path.join(os.getcwd(), local_dir)
+        print(local_path)
+        
+        if resp.startswith('1'):
+          data_conn, _ = data_socket.accept()
 
-      if resp.startswith('550'):
-        return
+          with open(local_path, 'wb') as file:
+            file.write('')
 
-      local_path = os.path.join(os.getcwd(), local_dir)
-      while True:
-        data = data_conn.recv(1024)
-        if not data:
-          break
+          while True:
+            data = data_conn.recv(1024)
+            if not data:
+              break
+            
+            with open(local_path, 'wb') as file:
+              file.write(data)
 
-        with open(local_path, 'wb') as file:
-          file.write(data)
+        data_conn.close()
+        data_socket.close()
+        print(self.client_socket.recv(1024).decode(), end='')
 
-      data_conn.close()
-      data_socket.close()
-      print(self.client_socket.recv(1024).decode(), end='')
+      except socket.timeout:
+        print('> ftp: connect :Connection timed out')
 
   def ls(self, dir: str = None, local_dir: str = None):
     data_port = random.randint(1024, 65535)
@@ -149,22 +160,32 @@ class FTPClient:
         data_socket.settimeout(10)
         data_socket.bind((local_ip, data_port))
         data_socket.listen(1)
-        data_conn, _ = data_socket.accept()
 
         resp = self.send_ftp(f'NLST {dir}' if dir is not None else 'NLST')
-
+        if resp.startswith('5'):
+          return
+        
         if local_dir is not None:
+          sep_dir = local_dir.split('/')
+          if len(sep_dir) > 2 or (len(sep_dir) == 2 and not local_dir.startswith('./')):
+            print(f'Error opening local file {local_dir}.\n> {sep_dir[0]}:No Such file or directory')
+            return
+          
           local_path = os.path.join(os.getcwd(), local_dir)
+        
+        if resp.startswith('1'):
+          data_conn, _ = data_socket.accept()
 
-        while True:
-          data = data_conn.recv(1024)
-          if not data:
-            break
-          if local_dir is None:
-            print(data.decode(), end='')
-          else:
-            with open(local_path, 'wb') as file:
-              file.write(data)
+          while True:
+            data = data_conn.recv(1024)
+            if not data:
+              break
+
+            if local_dir is None:
+              print(data.decode(), end='')
+            else:
+              with open(local_path, 'wb') as file:
+                file.write(data)
 
         data_conn.close()
         data_socket.close()
@@ -229,7 +250,6 @@ while True:
     elif command == 'binary':
       ftp_client.send_ftp('TYPE I')
 
-    # เชื่อม local ไม่ได้
     elif command == 'ls':
       if len(args) > 1:
         ftp_client.ls(*args[1:])
@@ -245,7 +265,6 @@ while True:
     elif command == 'delete':
       ftp_client.delete(f'DELE {args[1] if len(args) > 1 else None}')
 
-    # เชื่อม local ไม่ได้
     elif command == 'get':
       if len(args) > 1:
         ftp_client.get(*args[1:])
