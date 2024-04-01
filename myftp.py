@@ -238,7 +238,7 @@ class FTPClient:
       to_name = input(f'To name: ')
 
     resp = ftp_client.send_ftp(f'RNFR {from_name}')
-    if resp.startswith('550'):
+    if resp.startswith('5'):
       return
     ftp_client.send_ftp(f'RNTO {to_name}')
 
