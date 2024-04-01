@@ -9,19 +9,20 @@ class FTPClient:
 
   def is_connected(self):
     if not self.client_socket or self.client_socket.fileno() == -1:
-      print('Not Connected.')
       return False
     return True
 
   def disconnect(self):
-    self.send_ftp('QUIT')
+    resp = self.send_ftp('QUIT')
+    if resp is None:
+      return
     self.client_socket.close()
     self.client_socket = None
 
   def send_ftp(self, message):
     if not self.is_connected():
       print('Not connected.')
-      return
+      return None
 
     self.client_socket.sendall((message + '\r\n').encode())
     resp = self.client_socket.recv(1024).decode()
@@ -307,6 +308,8 @@ while True:
     command = args[0]
 
     if command in ["bye", "quit"]:
+      if ftp_client.is_connected():
+        ftp_client.send_ftp('QUIT')
       break
 
     elif command == 'open':
