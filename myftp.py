@@ -143,7 +143,7 @@ class FTPClient:
             if not data:
               break
             
-            with open(write_to, 'wb') as file:
+            with open(write_to, 'ab') as file:
               file.write(data)
 
             bytes_recv += len(data)
@@ -202,7 +202,7 @@ class FTPClient:
             if local_file is None:
               print(data.decode(), end='')
             else:
-              with open(write_to, 'wb') as file:
+              with open(write_to, 'ab') as file:
                 file.write(data)
 
             bytes_recv += len(data)
